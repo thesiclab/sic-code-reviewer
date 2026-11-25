@@ -412,7 +412,7 @@ Placement rules, applied in order:
 
 1. **Proof:** missing `file`, `line`, or a `failureScenario` under 20 characters or without a concrete input/outcome -> `dropped` (kept in the artifact for the eval, never posted).
 2. `file` not in the PR's changed files and not in the context read -> `dropped` ("unknown file").
-3. Adversary/counter-check verdict: `dismissed` that passes the quote rule -> `dismissed`. For medium/low/nit: `dismissed` with a reason -> `dismissed`, `disputed` -> `disputed`. **For critical/high (amendment A1):** `disputed`, or a dismissal without a verified quote, keeps the finding posted (`inline`/`body`) and blocking, with `placementReason` starting "disputed, still blocking".
+3. Adversary/counter-check verdict: `dismissed` that passes the quote rule -> `dismissed`. For medium/low/nit: `dismissed` with a reason -> `dismissed`, `disputed` -> `disputed`. **For critical/high (amendment A1, accepted by Dan 2026-11-25):** `disputed`, or a dismissal without a verified quote, keeps the finding posted (`inline`/`body`) and blocking, with `placementReason` starting "disputed, still blocking".
 4. `preExisting: true` -> `pre-existing` (own section, never gates).
 5. Line in `anchors` -> `inline`; else -> `body` (proof kept, posted in the review body, still gates if high).
 6. More than `maxInline` inline findings: the lowest-severity extras move to `body`.

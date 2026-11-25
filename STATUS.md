@@ -29,7 +29,7 @@ Recorded at the end of `CONTRACT.md`. No exported signature or shared type chang
 
 ## Stubbed or not done
 
-- **`tsconfig.json` is missing.** The config-guard hook blocked writing it (in the repo, and under `../staged/` for the architect). Not bypassed. Until Dan creates it, `npm run build` and `npm run typecheck` fail; `npm test` works. Content:
+- `tsconfig.json` added 2026-11-25 (Dan relaunched with config edits allowed).
 
 ```json
 {
