@@ -4,3 +4,4 @@ export * from "./parse.js";
 export * from "./anchors.js";
 export * from "./incremental.js";
 export * from "./patchset.js";
+export * from "./lockfile.js";

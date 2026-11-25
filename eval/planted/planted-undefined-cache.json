@@ -1,0 +1,51 @@
+{
+  "id": "planted-undefined-cache",
+  "title": "Read feature flags from the cache",
+  "body": "Feature flags are now cached.",
+  "diff": [
+    "diff --git a/src/flags.ts b/src/flags.ts",
+    "--- a/src/flags.ts",
+    "+++ b/src/flags.ts",
+    "@@ -1,6 +1,12 @@",
+    " import { loadFlags } from \"./remote.js\";",
+    " ",
+    "-export async function isEnabled(name: string): Promise<boolean> {",
+    "+const cache = new Map<string, { enabled: boolean }>();",
+    "+",
+    "+export async function warm(): Promise<void> {",
+    "   const flags = await loadFlags();",
+    "-  return flags[name]?.enabled ?? false;",
+    "+  for (const [k, v] of Object.entries(flags)) cache.set(k, v);",
+    "+}",
+    "+",
+    "+export async function isEnabled(name: string): Promise<boolean> {",
+    "+  return cache.get(name).enabled;",
+    " }"
+  ],
+  "files": {
+    "src/flags.ts": [
+      "import { loadFlags } from \"./remote.js\";",
+      "",
+      "const cache = new Map<string, { enabled: boolean }>();",
+      "",
+      "export async function warm(): Promise<void> {",
+      "  const flags = await loadFlags();",
+      "  for (const [k, v] of Object.entries(flags)) cache.set(k, v);",
+      "}",
+      "",
+      "export async function isEnabled(name: string): Promise<boolean> {",
+      "  return cache.get(name).enabled;",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/flags.ts",
+      "startLine": 11,
+      "endLine": 11,
+      "severity": "high",
+      "note": "cache.get returns undefined for an unknown flag or before warm(), so isEnabled throws a TypeError"
+    }
+  ]
+}

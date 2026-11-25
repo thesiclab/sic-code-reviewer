@@ -1,0 +1,39 @@
+{
+  "id": "planted-python-mutable-default",
+  "title": "Collect tags per post",
+  "body": "Helper to add tags.",
+  "diff": [
+    "diff --git a/app/tags.py b/app/tags.py",
+    "--- a/app/tags.py",
+    "+++ b/app/tags.py",
+    "@@ -1,2 +1,7 @@",
+    " def normalize(tag):",
+    "     return tag.strip().lower()",
+    "+",
+    "+",
+    "+def add_tag(tag, tags=[]):",
+    "+    tags.append(normalize(tag))",
+    "+    return tags"
+  ],
+  "files": {
+    "app/tags.py": [
+      "def normalize(tag):",
+      "    return tag.strip().lower()",
+      "",
+      "",
+      "def add_tag(tag, tags=[]):",
+      "    tags.append(normalize(tag))",
+      "    return tags",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "app/tags.py",
+      "startLine": 5,
+      "endLine": 5,
+      "severity": "high",
+      "note": "Mutable default argument: tags from one call leak into every later call without a list"
+    }
+  ]
+}

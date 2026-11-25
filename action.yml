@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: Apache-2.0
+# sic-code-reviewer: one reviewer and one adversary from different model families.
+#
+# One action, two modes, run as two jobs by the caller workflow
+# (see examples/workflows/sic-code-reviewer.yml):
+#   mode: review  read job. contents:read + pull-requests:read + model keys.
+#                 Writes review-result.json. Never posts, never sets a check.
+#   mode: post    write job. pull-requests:write + checks:write. No model keys,
+#                 no checkout of PR code. Validates the artifact, recomputes
+#                 the gate, sanitizes, posts one review, sets the check.
+#
+# Models, prices and caps may also come from .sic-code-reviewer.yml on the BASE
+# branch (never the PR head). Fencing, redaction, sanitizing, the proof rule
+# and the fail-closed gate have no switches.
+name: sic-code-reviewer
+description: Pull request review by two model families, an adversary, and a check that fails only on surviving high-severity findings.
+author: The SiC Lab
+branding:
+  icon: check-circle
+  color: gray-dark
+
+inputs:
+  mode:
+    description: "'review' (read job) or 'post' (write job)."
+    required: true
+  github-token:
+    description: Token for the GitHub API. The caller's job permissions decide what it can do.
+    required: true
+  result-path:
+    description: Where the review job writes, and the post job reads, review-result.json. Empty means $RUNNER_TEMP/review-result.json.
+    required: false
+    default: ""
+  check-name:
+    description: Name of the check run the post job sets.
+    required: false
+    default: sic-code-reviewer
+  bot-logins:
+    description: Comma-separated logins whose earlier reviews are trusted as prior rounds.
+    required: false
+    default: github-actions[bot]
+  reviewer-provider:
+    description: "'anthropic' or 'openai-compatible'."
+    required: false
+    default: anthropic
+  reviewer-model:
+    description: Reviewer model id.
+    required: false
+  reviewer-base-url:
+    description: Base URL for an openai-compatible reviewer.
+    required: false
+  reviewer-api-key-env:
+    description: Name of the environment variable holding the reviewer's key (never the key itself).
+    required: false
+    default: ANTHROPIC_API_KEY
+  reviewer-family:
+    description: Model family override for an id the family table does not know (for example a local model). Used for the different-family check.
+    required: false
+  reviewer-max-output-tokens:
+    description: Output token limit per call for the reviewer. Leave room for thinking tokens on models that always think.
+    required: false
+    default: "16000"
+  reviewer-price-in-per-mtok:
+    description: USD per million input tokens for the reviewer, for the cost estimate and cap. Required (here or in the base-branch file).
+    required: false
+  reviewer-price-out-per-mtok:
+    description: USD per million output tokens for the reviewer. Required (here or in the base-branch file).
+    required: false
+  adversary-provider:
+    description: "'anthropic', 'openai-compatible', or 'none' for a single-family run (labelled as such)."
+    required: false
+    default: openai-compatible
+  adversary-model:
+    description: Adversary model id; must be a different family from the reviewer for a duo verdict.
+    required: false
+  adversary-base-url:
+    description: Base URL for an openai-compatible adversary (for example Z.ai for GLM).
+    required: false
+  adversary-api-key-env:
+    description: Name of the environment variable holding the adversary's key.
+    required: false
+    default: ZAI_API_KEY
+  adversary-family:
+    description: Model family override for an id the family table does not know (for example a local model). Used for the different-family check.
+    required: false
+  adversary-max-output-tokens:
+    description: Output token limit per call for the adversary. Leave room for thinking tokens on models that always think.
+    required: false
+    default: "16000"
+  adversary-price-in-per-mtok:
+    description: USD per million input tokens for the adversary, for the cost estimate and cap. Required (here or in the base-branch file).
+    required: false
+  adversary-price-out-per-mtok:
+    description: USD per million output tokens for the adversary. Required (here or in the base-branch file).
+    required: false
+  max-cost-usd:
+    description: Hard cost cap per run in USD. Over the estimate, or exhausted mid-run, the check is neutral.
+    required: false
+    default: "2.00"
+  allow-second-provider-on-private:
+    description: "'true' lets a private repository send code to the adversary's provider when it differs from the reviewer's."
+    required: false
+    default: "false"
+
+runs:
+  using: node24
+  main: dist/entry/main.js

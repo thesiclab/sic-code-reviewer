@@ -1,0 +1,46 @@
+{
+  "id": "planted-path-traversal",
+  "title": "Serve uploaded files by name",
+  "body": "Adds GET /files/:name.",
+  "diff": [
+    "diff --git a/src/routes/files.ts b/src/routes/files.ts",
+    "new file mode 100644",
+    "--- /dev/null",
+    "+++ b/src/routes/files.ts",
+    "@@ -0,0 +1,10 @@",
+    "+import path from \"node:path\";",
+    "+import { createReadStream } from \"node:fs\";",
+    "+import type { Request, Response } from \"express\";",
+    "+",
+    "+const UPLOAD_DIR = \"/var/app/uploads\";",
+    "+",
+    "+export function getFile(req: Request, res: Response) {",
+    "+  const full = path.join(UPLOAD_DIR, req.params.name);",
+    "+  createReadStream(full).pipe(res);",
+    "+}"
+  ],
+  "files": {
+    "src/routes/files.ts": [
+      "import path from \"node:path\";",
+      "import { createReadStream } from \"node:fs\";",
+      "import type { Request, Response } from \"express\";",
+      "",
+      "const UPLOAD_DIR = \"/var/app/uploads\";",
+      "",
+      "export function getFile(req: Request, res: Response) {",
+      "  const full = path.join(UPLOAD_DIR, req.params.name);",
+      "  createReadStream(full).pipe(res);",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/routes/files.ts",
+      "startLine": 8,
+      "endLine": 8,
+      "severity": "critical",
+      "note": "Path traversal: a name like ../../etc/passwd escapes the upload directory"
+    }
+  ]
+}

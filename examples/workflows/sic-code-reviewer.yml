@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+# Example caller workflow for sic-code-reviewer. Copy to .github/workflows/.
+#
+# Security shape (CONTRACT.md "Workflow files"):
+# - Trigger is pull_request, same-repository PRs only. Never pull_request_target.
+# - No job both holds a write token and has PR code checked out:
+#     review: contents:read + pull-requests:read + model keys; checks out the
+#             BASE commit (PR files are read from git objects, never run).
+#     post:   pull-requests:write + checks:write; no checkout, no model keys.
+# - Every action is pinned by commit SHA.
+# - A newer push cancels the in-progress run for the same PR.
+name: sic-code-reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: sic-code-reviewer-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out the base commit with full history (PR head is read from git objects)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Review
+        # Replace with the released commit SHA of thesiclab/sic-code-reviewer.
+        uses: thesiclab/sic-code-reviewer@0000000000000000000000000000000000000000 # vX.Y.Z
+        with:
+          mode: review
+          github-token: ${{ github.token }}
+          result-path: ${{ runner.temp }}/review-result.json
+          # Default duo: a Claude reviewer and a GLM adversary (a different family).
+          # Models and prices may instead live in .sic-code-reviewer.yml on the
+          # base branch. Prices are required: fill them in from each provider's
+          # price page (USD per million tokens). Empty prices make the check neutral.
+          reviewer-provider: anthropic
+          reviewer-model: claude-sonnet-5-5
+          reviewer-price-in-per-mtok: ""
+          reviewer-price-out-per-mtok: ""
+          adversary-provider: openai-compatible
+          adversary-model: glm-5.3
+          adversary-base-url: https://api.z.ai/api/paas/v4
+          adversary-api-key-env: ZAI_API_KEY
+          adversary-price-in-per-mtok: ""
+          adversary-price-out-per-mtok: ""
+          max-cost-usd: "2.00"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+
+      - name: Hand the result to the post job
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sic-code-reviewer-result
+          path: ${{ runner.temp }}/review-result.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  post:
+    needs: review
+    # Runs even when the review job failed, so a crash still ends in a neutral
+    # check instead of no check. Skipped for forks (same condition as review).
+    if: always() && needs.review.result != 'cancelled' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Fetch the review result
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: sic-code-reviewer-result
+          path: ${{ runner.temp }}
+
+      - name: Post review and set the check
+        # Same pinned SHA as the review step.
+        uses: thesiclab/sic-code-reviewer@0000000000000000000000000000000000000000 # vX.Y.Z
+        with:
+          mode: post
+          github-token: ${{ github.token }}
+          result-path: ${{ runner.temp }}/review-result.json

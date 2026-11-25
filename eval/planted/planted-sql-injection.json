@@ -1,0 +1,44 @@
+{
+  "id": "planted-sql-injection",
+  "title": "Add user search by name",
+  "body": "Adds GET /users?name= for the admin panel.",
+  "diff": [
+    "diff --git a/src/db/users.ts b/src/db/users.ts",
+    "--- a/src/db/users.ts",
+    "+++ b/src/db/users.ts",
+    "@@ -4,3 +4,8 @@ export async function getUser(id: number) {",
+    "   const { rows } = await db.query(\"SELECT id, name, email FROM users WHERE id = $1\", [id]);",
+    "   return rows[0] ?? null;",
+    " }",
+    "+",
+    "+export async function searchUsers(name: string) {",
+    "+  const { rows } = await db.query(`SELECT id, name, email FROM users WHERE name LIKE '%${name}%'`);",
+    "+  return rows;",
+    "+}"
+  ],
+  "files": {
+    "src/db/users.ts": [
+      "import { db } from \"./pool.js\";",
+      "",
+      "export async function getUser(id: number) {",
+      "  const { rows } = await db.query(\"SELECT id, name, email FROM users WHERE id = $1\", [id]);",
+      "  return rows[0] ?? null;",
+      "}",
+      "",
+      "export async function searchUsers(name: string) {",
+      "  const { rows } = await db.query(`SELECT id, name, email FROM users WHERE name LIKE '%${name}%'`);",
+      "  return rows;",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/db/users.ts",
+      "startLine": 9,
+      "endLine": 9,
+      "severity": "critical",
+      "note": "SQL injection: the name query parameter is interpolated into the SQL string"
+    }
+  ]
+}

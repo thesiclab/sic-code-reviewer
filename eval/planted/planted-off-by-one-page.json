@@ -1,0 +1,49 @@
+{
+  "id": "planted-off-by-one-page",
+  "title": "Switch pagination to 1-based page numbers",
+  "body": "The API now takes 1-based page numbers, like the UI.",
+  "diff": [
+    "diff --git a/src/paginate.ts b/src/paginate.ts",
+    "--- a/src/paginate.ts",
+    "+++ b/src/paginate.ts",
+    "@@ -1,6 +1,7 @@",
+    "+// Pages are 1-based: page 1 is the first page.",
+    " export function page<T>(items: T[], pageNo: number, size: number): T[] {",
+    "   const start = pageNo * size;",
+    "-  return items.slice(start, start + size);",
+    "+  return items.slice(start, start + size + 1);",
+    " }",
+    " ",
+    " export function pageCount(total: number, size: number): number {"
+  ],
+  "files": {
+    "src/paginate.ts": [
+      "// Pages are 1-based: page 1 is the first page.",
+      "export function page<T>(items: T[], pageNo: number, size: number): T[] {",
+      "  const start = pageNo * size;",
+      "  return items.slice(start, start + size + 1);",
+      "}",
+      "",
+      "export function pageCount(total: number, size: number): number {",
+      "  return Math.ceil(total / size);",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/paginate.ts",
+      "startLine": 3,
+      "endLine": 3,
+      "severity": "high",
+      "note": "Page 1 starts at index size, so the first page of results is never returned"
+    },
+    {
+      "file": "src/paginate.ts",
+      "startLine": 4,
+      "endLine": 4,
+      "severity": "high",
+      "note": "Slice end adds one, so every page returns size + 1 items and overlaps the next page"
+    }
+  ]
+}

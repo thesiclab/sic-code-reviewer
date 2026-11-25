@@ -1,0 +1,40 @@
+{
+  "id": "planted-inverted-auth",
+  "title": "Refactor admin middleware",
+  "body": "Small cleanup of requireAdmin.",
+  "diff": [
+    "diff --git a/src/middleware/admin.ts b/src/middleware/admin.ts",
+    "--- a/src/middleware/admin.ts",
+    "+++ b/src/middleware/admin.ts",
+    "@@ -1,8 +1,6 @@",
+    " import type { Request, Response, NextFunction } from \"express\";",
+    " ",
+    " export function requireAdmin(req: Request, res: Response, next: NextFunction) {",
+    "-  if (req.user?.role === \"admin\") {",
+    "-    return next();",
+    "-  }",
+    "+  if (req.user?.role !== \"admin\") return next();",
+    "   return res.status(403).json({ error: \"forbidden\" });",
+    " }"
+  ],
+  "files": {
+    "src/middleware/admin.ts": [
+      "import type { Request, Response, NextFunction } from \"express\";",
+      "",
+      "export function requireAdmin(req: Request, res: Response, next: NextFunction) {",
+      "  if (req.user?.role !== \"admin\") return next();",
+      "  return res.status(403).json({ error: \"forbidden\" });",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/middleware/admin.ts",
+      "startLine": 4,
+      "endLine": 4,
+      "severity": "critical",
+      "note": "Auth check inverted: non-admins pass and admins get 403"
+    }
+  ]
+}

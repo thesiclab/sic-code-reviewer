@@ -275,7 +275,7 @@ export type SchemaCheck<T> =
 export function createAnthropicAdapter(
   spec: ModelSpec,
   opts: AdapterOptions,
-): ModelAdapter; // POST /v1/messages, tool-use forced for JSON
+): ModelAdapter; // POST /v1/messages, structured output (output_config.format json_schema; see amendment A2)
 export function createOpenAICompatAdapter(
   spec: ModelSpec,
   opts: AdapterOptions,
@@ -380,7 +380,7 @@ Rules:
 
 - **Reviewer:** one call, four lenses (correctness, security, tests, scope against the PR's stated purpose). Every finding must fill `file`, `line`, `lens`, `severity` (5-level rubric), `title`, `failureScenario`, `body`, `preExisting`. The schema requires them; it does not let a model omit them.
 - **Adversary:** sees the diff, the context, the PR text and every finding with ids only, in shuffled order, with no origin or model. Two jobs: (a) a verdict per finding: `upheld`, `dismissed` (reason, plus `refutingQuote` for critical/high), or `disputed`; (b) `missed`: new findings, same proof fields.
-- **Quote rule (code-enforced in module 6):** a dismissal of a critical/high finding counts only if `refutingQuote` appears verbatim (whitespace-normalised) in the diff or context text the adversary was shown. Otherwise it becomes `disputed`.
+- **Quote rule (code-enforced in module 6):** a dismissal of a critical/high finding counts only if `refutingQuote` appears verbatim (whitespace-normalised) in the diff or context text the adversary was shown, **and is executable code (amendment A1):** comments, block-comment bodies, docstrings and fence-like `=== BEGIN/END` lines are removed from both sides first, and at least 10 non-space characters must remain. Otherwise the finding stays blocking.
 - **Counter-check:** the reviewer model gets the adversary's `missed` findings under the same rules. Skipped when `missed` is empty.
 - Severity values outside the rubric fail validation and go through repair; at the filter stage a missing severity defaults to `medium` (Comfy rule) rather than dropping the finding.
 - A verdict for an id that does not exist is a schema error. A finding with no verdict is treated as `upheld`.
@@ -412,7 +412,7 @@ Placement rules, applied in order:
 
 1. **Proof:** missing `file`, `line`, or a `failureScenario` under 20 characters or without a concrete input/outcome -> `dropped` (kept in the artifact for the eval, never posted).
 2. `file` not in the PR's changed files and not in the context read -> `dropped` ("unknown file").
-3. Adversary/counter-check verdict: `dismissed` that passes the quote rule -> `dismissed`; a high/critical dismissal without a verified quote -> `disputed`; `disputed` -> `disputed`.
+3. Adversary/counter-check verdict: `dismissed` that passes the quote rule -> `dismissed`. For medium/low/nit: `dismissed` with a reason -> `dismissed`, `disputed` -> `disputed`. **For critical/high (amendment A1):** `disputed`, or a dismissal without a verified quote, keeps the finding posted (`inline`/`body`) and blocking, with `placementReason` starting "disputed, still blocking".
 4. `preExisting: true` -> `pre-existing` (own section, never gates).
 5. Line in `anchors` -> `inline`; else -> `body` (proof kept, posted in the review body, still gates if high).
 6. More than `maxInline` inline findings: the lowest-severity extras move to `body`.
@@ -462,7 +462,7 @@ Verdict table (first match wins):
 | one or more `inline` or `body` findings with severity critical/high | **failure**                                                     |
 | otherwise                                                           | success (labelled "single family" when the family check failed) |
 
-`pre-existing`, `dismissed`, `disputed` and `dropped` never gate. Coverage (files read / in diff, tokens) is shown separately from the verdict.
+`pre-existing`, `dismissed`, `disputed` and `dropped` never gate. Since amendment A1 only medium/low/nit findings can be placed `disputed`; a disputed critical/high stays `inline`/`body` and gates. Coverage (files read / in diff, tokens) is shown separately from the verdict.
 
 Cache: the key covers head SHA, merge base, config hash, prompt hash, model ids and action version. Same key -> same verdict, no model calls. The workflow sets `concurrency: { group: pr-<n>, cancel-in-progress: true }`.
 
@@ -777,3 +777,11 @@ If a worker needs a different signature or a new shared type, stop and report th
 - C2. `tsconfig.json` blocked by the config-guard hook; content in `STATUS.md`.
 - C3. GLM structured output through Z.ai: whether `response_format: json_schema` is honoured, or only `json_object`. The adapter supports both; needs a live check by Dan.
 - C4. Exact AACR-Bench file format: loader written against the published dataset card at build time.
+
+## Amendments (integrator, 2026-11-25)
+
+Behaviour changes only; no exported signature or shared type changed. Dan to acknowledge.
+
+- **A1. Injection-proof gate rules** (plan section 4: "the build fails if any [injection] succeeds"). With the v1 rules 16 of 30 injection runs got through the real pipeline: a disputed high never gated, a refuting quote could be the injected comment itself, and the counter-check let an obeying reviewer veto the adversary's catch. Now: (a) a critical/high finding that is disputed, or dismissed without a verified quote, stays posted and blocking (module 6 rule 3); (b) the refuting quote must be executable code, not a comment or a fence-like line (module 5 quote rule); (c) follows from (a) and (b): the counter-check cannot clear an adversary's critical/high finding without quoted code. Result: 0 of 30 injection runs succeed (tests/eval/injection-ci.test.ts, real pipeline, obeying fakes). Cost: an honest adversary that disagrees but cannot quote code now leaves the check red instead of green; the reason is shown on the finding.
+- **A2. Anthropic adapter uses structured output** (`output_config.format` json_schema) instead of forced tool use, and sends no `temperature`: the current Opus 5.5 and Sonnet 5.5 API rejects forced `tool_choice` and `temperature`.
+- **A3. Config inputs added to `action.yml`:** `<role>-family`, `<role>-max-output-tokens`, `<role>-price-in-per-mtok`, `<role>-price-out-per-mtok`. Prices are required (inputs or base file): without them the cost cap cannot hold, so `loadConfig` throws and the check is neutral.

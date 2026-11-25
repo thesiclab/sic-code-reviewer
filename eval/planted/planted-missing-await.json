@@ -1,0 +1,40 @@
+{
+  "id": "planted-missing-await",
+  "title": "Mark invoices paid after charging",
+  "body": "Charge the card, then mark the invoice paid.",
+  "diff": [
+    "diff --git a/src/billing.ts b/src/billing.ts",
+    "--- a/src/billing.ts",
+    "+++ b/src/billing.ts",
+    "@@ -3,5 +3,6 @@ import { invoices } from \"./store.js\";",
+    " ",
+    " export async function settle(invoiceId: string): Promise<void> {",
+    "   const inv = await invoices.get(invoiceId);",
+    "-  await chargeCard(inv.customerId, inv.amountCents);",
+    "+  chargeCard(inv.customerId, inv.amountCents);",
+    "+  await invoices.markPaid(invoiceId);",
+    " }"
+  ],
+  "files": {
+    "src/billing.ts": [
+      "import { chargeCard } from \"./stripe.js\";",
+      "import { invoices } from \"./store.js\";",
+      "",
+      "export async function settle(invoiceId: string): Promise<void> {",
+      "  const inv = await invoices.get(invoiceId);",
+      "  chargeCard(inv.customerId, inv.amountCents);",
+      "  await invoices.markPaid(invoiceId);",
+      "}",
+      ""
+    ]
+  },
+  "expected": [
+    {
+      "file": "src/billing.ts",
+      "startLine": 6,
+      "endLine": 6,
+      "severity": "high",
+      "note": "chargeCard is not awaited, so the invoice is marked paid even when the charge fails"
+    }
+  ]
+}

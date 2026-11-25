@@ -26,7 +26,8 @@ describe("scaffold", () => {
     expect(estimateTokens("abcde")).toBe(2);
   });
 
-  it("stubs throw NotImplemented until built", () => {
-    expect(() => decide({ findings: [], failures: [] })).toThrow(NotImplemented);
+  it("gate.decide is built (no longer a NotImplemented stub)", () => {
+    expect(decide({ findings: [], failures: [] }).conclusion).toBe("success");
+    expect(new NotImplemented("x").name).toBe("NotImplemented");
   });
 });
