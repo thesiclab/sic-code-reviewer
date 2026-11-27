@@ -11,17 +11,26 @@
 - **Config** (`src/config/`): `loadConfig` plus a small YAML-subset parser (no dependency). Fails closed (throws -> neutral check) on missing prices, key values where an env var NAME belongs, non-https URLs to public hosts, out-of-range numbers, unknown model families. The base file cannot set bot logins, check name or the private-repo opt-in, and `repeat-cap` can only go down.
 - **Injection set through the real pipeline: 0 of 30 runs succeed** (15 cases x reviewer-obeys / adversary-obeys). Was 16 of 30 before amendment A1 below. `npx tsx src/entry/eval-cli.ts --fake` reports the same.
 
+## 2026-11-27: Claude reviewer through the official CLI, CI (branch `claude-cli-and-ci`)
+
+- **Claude CLI adapter** (`src/models/claude-cli.ts`, amendment A4): the default Claude reviewer runs the official `claude -p` with a `claude setup-token` token from `CLAUDE_CODE_OAUTH_TOKEN`, no tools, one turn, JSON schema, isolated work dir and minimal environment, 300 s timeout. Errors, timeouts and unparseable output fail the role (neutral). The token never reaches argv, logs or error text, and the HTTP adapters refuse subscription tokens. Tested with a fake `claude` executable; **not yet run against the real CLI**.
+- **Pinned CLI:** `@anthropic-ai/claude-code` 2.1.323 in `claude-cli/package.json` + lockfile, installed with `npm ci` at run time.
+- **Config:** `reviewer-provider` defaults to `claude-cli`; `reviewer-api-key-env` names the token variable; `base-url` refused for the CLI. The `anthropic` API-key path stays as an alternative.
+- **CI:** `.github/workflows/ci.yml` (typecheck + vitest on Node 24), `.github/workflows/secret-scan.yml` (gitleaks over full history), `.github/dependabot.yml` (npm at `/` and `/claude-cli`, github-actions; weekly, minor+patch grouped).
+- First live run to check: structured output within `--max-turns 1`, and that the CLI's `usage` field is present.
+
 ## Contract amendments made by the integrator (Dan to acknowledge)
 
 Recorded at the end of `CONTRACT.md`. No exported signature or shared type changed.
 
 - **A1. Gate rules hardened against injection.** A disputed critical/high finding, or one dismissed without a refuting quote of _code_, stays posted and blocking (it was "disputed, never gates"). Refuting quotes have comments, docstrings and fence-like lines stripped before matching. This closes all three holes the eval builder found, including the counter-check veto. Trade-off: an honest adversary that disagrees without quotable code now leaves the check red; the reason is shown on the finding.
 - **A2.** Anthropic adapter uses `output_config.format` json_schema, not forced tool use, and sends no `temperature` (the current API rejects both on Opus/Sonnet 5.5).
+- **A4.** (2026-11-27) Claude reviewer through the official CLI with a setup-token; `ProviderKind` gains `claude-cli` (additive). Details in `CONTRACT.md`.
 - **A3.** `action.yml` gained `<role>-family`, `<role>-max-output-tokens`, `<role>-price-in-per-mtok`, `<role>-price-out-per-mtok`. The example workflow sets the default duo (Claude reviewer `claude-sonnet-5-5`, GLM adversary `glm-5.3` via `https://api.z.ai/api/paas/v4`) with prices left empty for Dan to fill in.
 
 ## Tests
 
-- `npx vitest run`: **17 files, 319 tests passed, 0 skipped**, including `tests/eval/injection-ci.test.ts` on the real pipeline (it used to skip while prompts were empty). `SIC_REQUIRE_FULL_PIPELINE=1` passes too.
+- `npx vitest run`: **19 files, 350 tests passed, 0 skipped** (2026-11-27; was 319), including `tests/eval/injection-ci.test.ts` on the real pipeline (it used to skip while prompts were empty). `SIC_REQUIRE_FULL_PIPELINE=1` passes too.
 - `tests/setup.ts` makes every `fetch` throw; no test uses `node:http`/`https`/`net`. Git tests use temporary repos with the user's git config isolated.
 - Type check: `tsc --noEmit` with the tsconfig flags below over `src/**` and `tests/**`: no errors. A `tsc` build of `src/` to a scratch `dist/` works, and `node dist/entry/main.js` dispatches.
 - Secret scan over every tracked file (PEM, AWS, GitHub, Anthropic, OpenAI, Slack, Google, JWT shapes): no hits. Test vectors are assembled at run time from fragments (`tests/fixtures/fake-secrets.ts`).
@@ -75,7 +84,7 @@ Recorded at the end of `CONTRACT.md`. No exported signature or shared type chang
 ## Next steps
 
 1. Dan: create `tsconfig.json` (above), then `npm run build`.
-2. Real keys: put `ANTHROPIC_API_KEY` and `ZAI_API_KEY` in 1Password first, then as repo secrets; fill in model prices; check Z.ai json_schema support (open item C3) with one live call.
+2. Real keys: run `claude setup-token`, put the token and `ZAI_API_KEY` in the password manager first, then as repo secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `ZAI_API_KEY`); fill in model prices; check Z.ai json_schema support (open item C3) with one live call.
 3. Create the public repo `thesiclab/sic-code-reviewer` (after hours, per the no-personal-repos-in-work-hours rule), push, cut a release with `dist/`, and replace the 40-zero `uses:` SHA.
 4. Dogfood on our own repos (pr-caddie waits for the check; milestone 2).
 5. Eval runs with real models: planted set, injection set, replays of our past PRs (`pr-<n>-base`/`pr-<n>-head` refs), AACR-Bench (dataset fetched at eval time), and the shadow single-model baseline. Publish the numbers either way.

@@ -11,7 +11,21 @@ export {
   createOpenAICompatAdapter,
   createFakeAdapter,
   toProviderSchema,
+  isSubscriptionToken,
 } from "./adapters.js";
+export type { ClaudeCliOptions } from "./claude-cli.js";
+export {
+  createClaudeCliAdapter,
+  buildClaudeArgs,
+  buildClaudeEnv,
+  parseCliEnvelope,
+  scrubToken,
+} from "./claude-cli.js";
+export {
+  CLAUDE_CLI_PACKAGE,
+  installPinnedClaudeCli,
+  checkPin,
+} from "./claude-cli-install.js";
 export {
   extractJson,
   extractJsonDetailed,

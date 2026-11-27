@@ -210,9 +210,13 @@ function fromFile(o: Obj, role: string, warnings: string[]): ModelFields {
 
 function buildSpec(role: string, f: ModelFields): ModelSpec {
   const provider = (f.provider ?? "").toLowerCase();
-  if (provider !== "anthropic" && provider !== "openai-compatible")
+  if (
+    provider !== "claude-cli" &&
+    provider !== "anthropic" &&
+    provider !== "openai-compatible"
+  )
     throw new ConfigError(
-      `${role}-provider must be 'anthropic' or 'openai-compatible'`,
+      `${role}-provider must be 'claude-cli', 'anthropic' or 'openai-compatible'`,
     );
   if (!f.model) throw new ConfigError(`${role}-model is required`);
   if (!/^[\w.:/@-]{1,128}$/.test(f.model))
@@ -220,14 +224,26 @@ function buildSpec(role: string, f: ModelFields): ModelSpec {
       `${role}-model has characters a model id does not use`,
     );
   const apiKeyEnv =
-    f.apiKeyEnv ?? (provider === "anthropic" ? "ANTHROPIC_API_KEY" : undefined);
+    f.apiKeyEnv ??
+    (provider === "claude-cli"
+      ? "CLAUDE_CODE_OAUTH_TOKEN"
+      : provider === "anthropic"
+        ? "ANTHROPIC_API_KEY"
+        : undefined);
   if (!apiKeyEnv) throw new ConfigError(`${role}-api-key-env is required`);
   if (!ENV_NAME.test(apiKeyEnv))
     throw new ConfigError(
       `${role}-api-key-env must be the NAME of an environment variable (A-Z, 0-9, _), never a key`,
     );
   let baseUrl: string | undefined;
-  if (provider === "openai-compatible") {
+  if (provider === "claude-cli") {
+    // A subscription token is used only by the official CLI talking to
+    // Anthropic directly: never through a gateway or another base URL.
+    if (f.baseUrl)
+      throw new ConfigError(
+        `${role}-base-url is not allowed with claude-cli (a subscription token never goes through a gateway)`,
+      );
+  } else if (provider === "openai-compatible") {
     if (!f.baseUrl)
       throw new ConfigError(
         `${role}-base-url is required for openai-compatible`,
@@ -306,7 +322,7 @@ export function loadConfig(
       "reviewer in .sic-code-reviewer.yml must be a mapping",
     );
   const reviewer = buildSpec("reviewer", {
-    provider: "anthropic",
+    provider: "claude-cli",
     ...fromInputs(inputs, "reviewer"),
     ...(isObj(rvFile) ? fromFile(rvFile, "reviewer", warnings) : {}),
   });

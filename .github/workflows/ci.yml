@@ -1,0 +1,51 @@
+# CI for sic-code-reviewer: type check and the offline vitest suite.
+# No lint step: the repository has no linter configured.
+# The tests never reach the network or a model (tests/setup.ts makes fetch
+# throw; the claude CLI tests use a fake executable), so no secrets are used.
+# The action runs on node24, so CI does too.
+# Required status check name: "Test (Node 24)"
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One run per pull request or branch. A newer push cancels an older run on a
+# pull request. Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["24"]
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Lockfile install; dev dependencies only (the action has no runtime ones).
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run the tests
+        run: npx vitest run
