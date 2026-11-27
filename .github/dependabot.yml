@@ -1,0 +1,38 @@
+# Dependabot version updates.
+# - npm at /: dev dependencies (TypeScript, vitest, Node types). The action
+#   itself has no runtime dependencies.
+# - npm at /claude-cli: the pinned official Claude Code CLI the claude-cli
+#   reviewer installs at run time (package.json and lockfile move together;
+#   a test checks the pin stays exact).
+# - github-actions: the actions in .github/workflows.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /claude-cli
+    schedule:
+      interval: weekly
+    groups:
+      claude-cli-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch

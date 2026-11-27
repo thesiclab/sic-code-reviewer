@@ -9,6 +9,14 @@
 #                 no checkout of PR code. Validates the artifact, recomputes
 #                 the gate, sanitizes, posts one review, sets the check.
 #
+# Claude reviewer (default, reviewer-provider: claude-cli): the review job runs
+# the official Claude Code CLI (`claude -p`, no tools, one turn) with a
+# `claude setup-token` token from the env var named by reviewer-api-key-env
+# (default CLAUDE_CODE_OAUTH_TOKEN). The CLI version is pinned exactly in
+# claude-cli/package.json + package-lock.json and installed with `npm ci` on
+# first use. The token goes only to that CLI process: never to an HTTP API,
+# never through a gateway or base URL.
+#
 # Models, prices and caps may also come from .sic-code-reviewer.yml on the BASE
 # branch (never the PR head). Fencing, redaction, sanitizing, the proof rule
 # and the fail-closed gate have no switches.
@@ -39,19 +47,19 @@ inputs:
     required: false
     default: github-actions[bot]
   reviewer-provider:
-    description: "'anthropic' or 'openai-compatible'."
+    description: "'claude-cli' (default: the official Claude Code CLI with a setup-token), 'anthropic' (pay-per-token API key), or 'openai-compatible'."
     required: false
-    default: anthropic
+    default: claude-cli
   reviewer-model:
     description: Reviewer model id.
     required: false
   reviewer-base-url:
-    description: Base URL for an openai-compatible reviewer.
+    description: Base URL for an openai-compatible reviewer. Not allowed with claude-cli.
     required: false
   reviewer-api-key-env:
-    description: Name of the environment variable holding the reviewer's key (never the key itself).
+    description: "Name of the environment variable holding the reviewer's credential (never the value). Empty means CLAUDE_CODE_OAUTH_TOKEN for claude-cli, ANTHROPIC_API_KEY for anthropic."
     required: false
-    default: ANTHROPIC_API_KEY
+    default: ""
   reviewer-family:
     description: Model family override for an id the family table does not know (for example a local model). Used for the different-family check.
     required: false
@@ -60,13 +68,13 @@ inputs:
     required: false
     default: "16000"
   reviewer-price-in-per-mtok:
-    description: USD per million input tokens for the reviewer, for the cost estimate and cap. Required (here or in the base-branch file).
+    description: USD per million input tokens for the reviewer, for the cost estimate and cap. Required (here or in the base-branch file). For claude-cli on a subscription use the API list price; the cap then bounds usage, not a bill.
     required: false
   reviewer-price-out-per-mtok:
     description: USD per million output tokens for the reviewer. Required (here or in the base-branch file).
     required: false
   adversary-provider:
-    description: "'anthropic', 'openai-compatible', or 'none' for a single-family run (labelled as such)."
+    description: "'openai-compatible' (default), 'claude-cli', 'anthropic', or 'none' for a single-family run (labelled as such)."
     required: false
     default: openai-compatible
   adversary-model:

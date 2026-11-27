@@ -25,6 +25,8 @@ export function resolveFamily(
 ): string {
   if (override && override.trim()) return override.trim().toLowerCase();
   if (provider === "fake") return "fake";
+  // The claude CLI only runs Claude models; ids may be aliases ("sonnet").
+  if (provider === "claude-cli") return "claude";
   let id = model.trim().toLowerCase();
   id = id.slice(id.lastIndexOf("/") + 1);
   const dotted = /(?:^|\.)(claude-[^.]*.*)$/.exec(id);

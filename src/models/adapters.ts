@@ -44,7 +44,8 @@ export type FakeScript = (
 // Shared completion loop
 // ---------------------------------------------------------------------------
 
-type SendResult =
+/** @internal Shared with the claude CLI adapter. */
+export type SendResult =
   | {
       ok: true;
       text: string;
@@ -55,14 +56,16 @@ type SendResult =
     }
   | { ok: false; error: ModelError };
 
-interface Charger {
+/** @internal */
+export interface Charger {
   reserve(inputTokens: number, maxOutputTokens: number): boolean;
   settle(inputTokens: number, outputTokens: number): ModelUsage;
 }
 
 const MAX_REASK_ERRORS_CHARS = 2000;
 
-function meterCharger(spec: ModelSpec, meter: CostMeter): Charger {
+/** @internal */
+export function meterCharger(spec: ModelSpec, meter: CostMeter): Charger {
   return {
     reserve: (i, o) => meter.reserve(spec, i, o),
     settle: (i, o) => meter.settle(spec, { inputTokens: i, outputTokens: o }),
@@ -98,7 +101,8 @@ function reaskText(errors: string[]): string {
   return `\n\nYour previous reply did not pass validation:\n${list}\nReply again with only the corrected JSON object.`;
 }
 
-async function runComplete<T>(
+/** @internal Shared completion loop: reserve, send, extract, validate, one re-ask. */
+export async function runComplete<T>(
   charger: Charger,
   send: (req: ModelRequest) => Promise<SendResult>,
   req: ModelRequest,
@@ -182,7 +186,8 @@ async function runComplete<T>(
 const RETRY_CAP_S = 30;
 const DEFAULT_RETRY_S = 2;
 
-function shortMessage(s: string): string {
+/** @internal Short, control-free, redacted message for errors. */
+export function shortMessage(s: string): string {
   return redact(s.replace(/[\u0000-\u001f]+/g, " ").slice(0, 200)).text;
 }
 
@@ -321,6 +326,15 @@ export function toProviderSchema(schema: JsonSchema): JsonSchema {
   return walk(schema) as JsonSchema;
 }
 
+/**
+ * A Claude subscription OAuth token (from `claude setup-token`). Such a token
+ * may only be used by the official claude CLI, never sent to the Messages API
+ * or to any other endpoint by this action.
+ */
+export function isSubscriptionToken(key: string): boolean {
+  return /^sk-ant-oat/i.test(key.trim());
+}
+
 // ---------------------------------------------------------------------------
 // Anthropic: POST /v1/messages with output_config.format json_schema.
 // Not forced tool use: current Claude models (Opus 5.5, Sonnet 5.5) return 400
@@ -339,6 +353,15 @@ export function createAnthropicAdapter(
         error: {
           kind: "config",
           message: "no API key for the Anthropic adapter",
+        },
+      };
+    if (isSubscriptionToken(opts.apiKey))
+      return {
+        ok: false,
+        error: {
+          kind: "config",
+          message:
+            "a Claude subscription token is not an API key; use provider claude-cli",
         },
       };
     const body = {
@@ -429,6 +452,15 @@ export function createOpenAICompatAdapter(
         error: {
           kind: "config",
           message: "no API key for the openai-compatible adapter",
+        },
+      };
+    if (isSubscriptionToken(opts.apiKey))
+      return {
+        ok: false,
+        error: {
+          kind: "config",
+          message:
+            "a Claude subscription token is never sent through an API or gateway; use provider claude-cli",
         },
       };
     const url = `${spec.baseUrl.replace(/\/+$/, "")}/chat/completions`;

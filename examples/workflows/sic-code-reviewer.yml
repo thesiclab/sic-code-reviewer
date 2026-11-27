@@ -45,11 +45,17 @@ jobs:
           github-token: ${{ github.token }}
           result-path: ${{ runner.temp }}/review-result.json
           # Default duo: a Claude reviewer and a GLM adversary (a different family).
+          # The Claude reviewer runs the official Claude Code CLI (pinned by the
+          # action) with a token from `claude setup-token`, stored as the repo
+          # secret CLAUDE_CODE_OAUTH_TOKEN. The token is used only by that CLI.
+          # To use a pay-per-token API key instead: reviewer-provider: anthropic
+          # and an ANTHROPIC_API_KEY secret.
           # Models and prices may instead live in .sic-code-reviewer.yml on the
           # base branch. Prices are required: fill them in from each provider's
           # price page (USD per million tokens). Empty prices make the check neutral.
-          reviewer-provider: anthropic
+          reviewer-provider: claude-cli
           reviewer-model: claude-sonnet-5-5
+          reviewer-api-key-env: CLAUDE_CODE_OAUTH_TOKEN
           reviewer-price-in-per-mtok: ""
           reviewer-price-out-per-mtok: ""
           adversary-provider: openai-compatible
@@ -60,7 +66,7 @@ jobs:
           adversary-price-out-per-mtok: ""
           max-cost-usd: "2.00"
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
 
       - name: Hand the result to the post job

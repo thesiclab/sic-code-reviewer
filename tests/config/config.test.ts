@@ -201,3 +201,47 @@ describe("checkBaseUrl", () => {
     );
   });
 });
+
+describe("claude-cli reviewer", () => {
+  const { ["reviewer-provider"]: _p, ...noProvider } = INPUTS;
+  it("is the default reviewer provider and reads the setup-token from CLAUDE_CODE_OAUTH_TOKEN", () => {
+    const { config } = loadConfig(noProvider, null);
+    expect(config.reviewer.provider).toBe("claude-cli");
+    expect(config.reviewer.apiKeyEnv).toBe("CLAUDE_CODE_OAUTH_TOKEN");
+    expect(config.reviewer.family).toBe("claude");
+    expect(config.reviewer.baseUrl).toBeUndefined();
+    expect(config.adversary?.provider).toBe("openai-compatible");
+  });
+
+  it("accepts a CLI model alias and resolves it to the claude family", () => {
+    const { config } = loadConfig({ ...noProvider, "reviewer-model": "sonnet" }, null);
+    expect(config.reviewer.family).toBe("claude");
+  });
+
+  it("takes the token variable NAME from an input, never a value", () => {
+    const { config } = loadConfig(
+      { ...noProvider, "reviewer-api-key-env": "MY_CLAUDE_TOKEN" },
+      null,
+    );
+    expect(config.reviewer.apiKeyEnv).toBe("MY_CLAUDE_TOKEN");
+    const value = ["sk", "ant", "oat01", "abcdefabcdef"].join("-");
+    expect(() =>
+      loadConfig({ ...noProvider, "reviewer-api-key-env": value }, null),
+    ).toThrow(/NAME/);
+  });
+
+  it("refuses a base URL: a subscription token never goes through a gateway", () => {
+    expect(() =>
+      loadConfig({ ...noProvider, "reviewer-base-url": "https://gateway.example" }, null),
+    ).toThrow(/gateway/);
+    expect(() =>
+      loadConfig(noProvider, "reviewer:\n  base-url: https://gateway.example\n"),
+    ).toThrow(/gateway/);
+  });
+
+  it("the API-key path stays available as an explicit alternative", () => {
+    const { config } = loadConfig(INPUTS, null);
+    expect(config.reviewer.provider).toBe("anthropic");
+    expect(config.reviewer.apiKeyEnv).toBe("ANTHROPIC_API_KEY");
+  });
+});

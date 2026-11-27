@@ -68,3 +68,23 @@ describe("action.yml", () => {
     expect(code(action)).not.toMatch(/secrets\./);
   });
 });
+
+describe("Claude reviewer through the official CLI", () => {
+  it("action.yml defaults the reviewer to claude-cli and names the token variable, never a value", () => {
+    expect(code(action)).toMatch(/\n  reviewer-provider:\n[^\n]*\n[^\n]*\n    default: claude-cli\n/);
+    expect(code(action)).not.toMatch(/sk-ant-/);
+  });
+
+  it("the example passes the setup-token secret only to the review job", () => {
+    expect(job("review")).toContain("reviewer-provider: claude-cli");
+    expect(job("review")).toContain("CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}");
+    expect(job("post")).not.toContain("CLAUDE_CODE_OAUTH_TOKEN");
+  });
+
+  it("the CLI is pinned to an exact version, never latest or a range", () => {
+    const pkg = JSON.parse(readFileSync("claude-cli/package.json", "utf8")) as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies["@anthropic-ai/claude-code"]).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});

@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { readInputs, readPrEvent, type PrEvent } from "./env.js";
 import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import type {
   AdversaryVerdict,
@@ -42,6 +43,9 @@ import {
 import {
   createAnthropicAdapter,
   createOpenAICompatAdapter,
+  createClaudeCliAdapter,
+  installPinnedClaudeCli,
+  isSubscriptionToken,
   familyCheck,
   type ModelAdapter,
 } from "../models/index.js";
@@ -511,12 +515,35 @@ export function realAdapterFactory(
   env: NodeJS.ProcessEnv,
   fetchImpl: typeof fetch,
 ) {
+  // The pinned CLI is installed at most once per run, on first use.
+  let cli: Promise<string> | null = null;
+  const pinnedCli = () =>
+    (cli ??= installPinnedClaudeCli({
+      actionDir: resolveActionDir(env),
+      workRoot: env.RUNNER_TEMP || tmpdir(),
+      env,
+    }));
   return (spec: ModelSpec, meter: CostMeter): ModelAdapter => {
     const apiKey = spec.apiKeyEnv ? env[spec.apiKeyEnv] : undefined;
     if (!apiKey)
       return failingAdapter(
         spec,
-        `no API key in the configured environment variable for ${spec.model}`,
+        `no ${spec.provider === "claude-cli" ? "setup-token" : "API key"} in the configured environment variable for ${spec.model}`,
+      );
+    if (spec.provider === "claude-cli")
+      return createClaudeCliAdapter(spec, {
+        token: apiKey,
+        timeoutMs: 300_000,
+        meter,
+        command: pinnedCli,
+        path: env.PATH ?? "",
+        tmpRoot: env.RUNNER_TEMP || tmpdir(),
+      });
+    // A subscription token never goes to an HTTP API or gateway.
+    if (isSubscriptionToken(apiKey))
+      return failingAdapter(
+        spec,
+        "a Claude subscription token can only be used with provider claude-cli",
       );
     const opts = { fetch: fetchImpl, apiKey, timeoutMs: 180_000, meter };
     if (spec.provider === "anthropic")

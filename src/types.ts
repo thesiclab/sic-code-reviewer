@@ -201,16 +201,20 @@ export interface FilteredFinding extends Finding {
 // Models (module 4)
 // ---------------------------------------------------------------------------
 
-export type ProviderKind = "anthropic" | "openai-compatible" | "fake";
+export type ProviderKind =
+  | "claude-cli"
+  | "anthropic"
+  | "openai-compatible"
+  | "fake";
 
 export interface ModelSpec {
   provider: ProviderKind;
   model: string;
   /** Model family, e.g. "claude", "glm", "gpt", "gemini", "qwen". Resolved by models/family.ts. */
   family: string;
-  /** Base URL for openai-compatible providers. */
+  /** Base URL for openai-compatible providers. Never set for claude-cli. */
   baseUrl?: string;
-  /** Name of the env var holding the key; never the key itself. */
+  /** Name of the env var holding the key (or, for claude-cli, the setup-token); never the value itself. */
   apiKeyEnv?: string;
   maxOutputTokens: number;
   /** USD per million tokens, for the cost meter. */
