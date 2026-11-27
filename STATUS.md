@@ -83,9 +83,9 @@ Recorded at the end of `CONTRACT.md`. No exported signature or shared type chang
 
 ## Next steps
 
-1. Dan: create `tsconfig.json` (above), then `npm run build`.
+1. `tsconfig.json` exists (2026-11-25); `npm run build` before a release.
 2. Real keys: run `claude setup-token`, put the token and `ZAI_API_KEY` in the password manager first, then as repo secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `ZAI_API_KEY`); fill in model prices; check Z.ai json_schema support (open item C3) with one live call.
 3. Create the public repo `thesiclab/sic-code-reviewer` (after hours, per the no-personal-repos-in-work-hours rule), push, cut a release with `dist/`, and replace the 40-zero `uses:` SHA.
 4. Dogfood on our own repos (pr-caddie waits for the check; milestone 2).
 5. Eval runs with real models: planted set, injection set, replays of our past PRs (`pr-<n>-base`/`pr-<n>-head` refs), AACR-Bench (dataset fetched at eval time), and the shadow single-model baseline. Publish the numbers either way.
-6. Dan to acknowledge amendments A1-A3 and decide open item C1 (counter-check).
+6. Dan to acknowledge amendments A2-A4 (A1 accepted 2026-11-25) and decide open item C1 (counter-check).
